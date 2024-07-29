@@ -25,17 +25,36 @@ func (s *UserSvc) Register(ctx *gin.Context) {
 			"code": 1,
 			"msg":  "error",
 		})
+		return
 	}
 	now := time.Now()
 	// 获取当前的年份
 	year := now.Year()
-	fmt.Println(year)
 	// 获取当前日期是今年的第几天
 	dayOfYear := now.YearDay()
-	fmt.Println(dayOfYear)
-	// 签到
-	fmt.Sprintf("user:%s:%s", user.Name, "s")
-	conf.RedisClient.SetBit(ctx, "user_"+user.Name, user.Age, 0)
+	// 签到 key: user:sign:年份:用户ID
+	key := fmt.Sprintf("user:sign:%d:%d", year, user.ID)
+	// setbit key offset value
+	oldValue, err := conf.RedisClient.SetBit(ctx, key, int64(dayOfYear), 1).Result()
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{
+			"code": 1,
+			"msg":  "error",
+		})
+		return
+	}
+	if oldValue == 0 {
+		ctx.JSON(http.StatusOK, gin.H{
+			"code": 0,
+			"msg":  "重复签到",
+		})
+		return
+	}
+	ctx.JSON(http.StatusOK, gin.H{
+		"code": 0,
+		"msg":  "签到成功",
+	})
+	return
 }
 
 // GetCumulativeDays 获取指定年份的累计签到天数
@@ -75,6 +94,7 @@ func GetCumulativeDays(ctx context.Context, rdb *redis.Client, userID int, year 
 	return cumulativeDays, nil
 }
 
+// GetSignOfMonth 获取指定月份的签到情况
 func GetSignOfMonth(ctx context.Context, rdb *redis.Client, userID, year, days, offset int) ([]bool, error) {
 	typ := fmt.Sprintf("u%d", days)
 	key := fmt.Sprintf("user:%d:%d", year, userID)

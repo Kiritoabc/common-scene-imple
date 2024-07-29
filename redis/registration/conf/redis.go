@@ -7,6 +7,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+// RedisClient redis客户端
 var RedisClient = &Redis{
 	Client: nil,
 }
