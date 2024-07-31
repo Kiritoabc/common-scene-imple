@@ -1,0 +1,11 @@
+app:
+  name: "spring-boot-starter-kafka-example"
+  port: ":8080"
+log:
+  level: info
+  log_dir: ./logs
+  max_age: 7
+redis:
+  addr: 127.0.0.1:6379
+  password:
+  db: 0

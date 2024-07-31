@@ -12,20 +12,20 @@ var Config = &Provider{}
 
 // Configuration 配置文件
 type Configuration struct {
-	App         App         `yaml:"app"`
-	Log         Log         `yaml:"log"`
-	RedisConfig RedisConfig `yaml:"redis"`
+	App         App         `mapstructure:"app"`
+	Log         Log         `mapstructure:"log"`
+	RedisConfig RedisConfig `mapstructure:"redis"`
 }
 
 // App 应用配置
 type App struct {
-	Port       string `yaml:"port"`
-	ServerName string `yaml:"server_name"`
+	Port       string `mapstructure:"port"`
+	ServerName string `mapstructure:"server_name"`
 }
 
 // Log 日志配置
 type Log struct {
-	LogDir string        `yaml:"log_dir"`
-	Level  string        `yaml:"level"`
-	MaxAge time.Duration `yaml:"max_age"`
+	LogDir string        `mapstructure:"log_dir"`
+	Level  string        `mapstructure:"level"`
+	MaxAge time.Duration `mapstructure:"max_age"`
 }

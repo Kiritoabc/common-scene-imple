@@ -15,7 +15,7 @@ type UserSvc struct{}
 // Register 签到
 func (s *UserSvc) Register(ctx *gin.Context) {
 	user := &domain.User{}
-	err := ctx.ShouldBindJSON(&user)
+	err := ctx.ShouldBindJSON(user)
 
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{
@@ -40,7 +40,7 @@ func (s *UserSvc) Register(ctx *gin.Context) {
 		})
 		return
 	}
-	if oldValue == 0 {
+	if oldValue == 1 {
 		ctx.JSON(http.StatusOK, gin.H{
 			"code": 0,
 			"msg":  "重复签到",
@@ -65,7 +65,7 @@ func (s *UserSvc) GetCumulativeDays(ctx *gin.Context) {
 	// 当前天数的偏移量
 	dayOfYear := now.YearDay()
 	// 拼接key
-	key := fmt.Sprintf("user:%s:%d", userId, year)
+	key := fmt.Sprintf("user:sign:%d:%s", year, userId)
 	segmentSize := 63
 	cumulativeDays := 0
 	// bit操作
@@ -73,10 +73,11 @@ func (s *UserSvc) GetCumulativeDays(ctx *gin.Context) {
 	for i := 0; i < dayOfYear; i += segmentSize {
 		size := segmentSize
 		if i+segmentSize > dayOfYear {
-			size = dayOfYear - i
+			size = dayOfYear - i + 1
 		}
 		// GET, usize,#i
-		bitOps = append(bitOps, "GET", fmt.Sprintf("u%d", size), fmt.Sprintf("#%d", i))
+		// get,u25,190
+		bitOps = append(bitOps, "GET", fmt.Sprintf("u%d", size), fmt.Sprintf("%d", i))
 	}
 
 	values, err := conf.RedisClient.BitField(ctx, key, bitOps...).Result()
@@ -120,7 +121,7 @@ func (s *UserSvc) GetSignOfMonth(ctx *gin.Context) {
 	days := time.Date(now.Year(), now.Month()+1, 1, 0, 0, 0, 0, now.Location()).Add(-24 * time.Hour).Day() // 31
 	// 获取本月初是今年的第几天
 	offset := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location()).YearDay()
-	key := fmt.Sprintf("user:%s:%d", userId, year)
+	key := fmt.Sprintf("user:sign:%d:%s", year, userId)
 	typ := fmt.Sprintf("u%d", days)
 	values, err := conf.RedisClient.BitField(ctx, key, "Get", typ, offset).Result()
 	if err != nil {

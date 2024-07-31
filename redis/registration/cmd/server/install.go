@@ -10,19 +10,23 @@ import (
 func installConfigOrDie(filePath string) {
 	log.Info("Installing config file")
 	cfg := &conf.Configuration{}
-	vip := viper.New()
-	vip.AddConfigPath(filePath)      //设置读取的文件路径
-	vip.SetConfigName("application") //设置读取的文件名
-	vip.SetConfigType("yaml")        //设置文件的类型
+	viper.SetConfigFile(filePath)
+	viper.SetConfigType("yaml") //设置文件的类型
 	//尝试进行配置读取
-	if err := vip.ReadInConfig(); err != nil {
-		panic(err)
+	if err := viper.ReadInConfig(); err != nil {
+		log.Errorf("Failed to read config: %v", err)
+		return // 同上
 	}
 
-	if err := vip.Unmarshal(&cfg); err != nil {
-		panic(err)
+	if err := viper.Unmarshal(&cfg); err != nil {
+		log.Errorf("Failed to unmarshal config: %v", err)
+		return // 同上
 	}
 	conf.Config = &conf.Provider{
 		Config: cfg,
 	}
+}
+
+func installPlugins() error {
+	return conf.Config.Config.RedisConfig.Init()
 }

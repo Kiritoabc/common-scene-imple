@@ -14,7 +14,9 @@ var userSvc = &service.UserSvc{}
 // Run 启动服务
 func Run(ctx context.Context, filePath string) {
 	installConfigOrDie(filePath)
-
+	if err := installPlugins(); err != nil {
+		log.Fatalln(err)
+	}
 	engine := gin.Default()
 	// 签到
 	engine.POST("/register", userSvc.Register)
@@ -22,5 +24,8 @@ func Run(ctx context.Context, filePath string) {
 	engine.GET("/cumulative_days", userSvc.GetCumulativeDays)
 	// 获取当月的签到情况
 	engine.GET("/sign_of_month", userSvc.GetSignOfMonth)
-	log.Fatalln(engine.Run(conf.Config.Config.App.Port))
+	err := engine.Run(conf.Config.Config.App.Port)
+	if err != nil {
+		return
+	}
 }

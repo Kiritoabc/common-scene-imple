@@ -6,7 +6,7 @@ import (
 )
 
 // filePath 配置文件路径
-const filePath = "conf"
+const filePath = "conf/application.yaml"
 
 func main() {
 	server.Run(context.Background(), filePath)
