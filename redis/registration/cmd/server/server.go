@@ -18,6 +18,9 @@ func Run(ctx context.Context, filePath string) {
 	engine := gin.Default()
 	// 签到
 	engine.POST("/register", userSvc.Register)
-
+	// 获取一年签到的天数
+	engine.GET("/cumulative_days", userSvc.GetCumulativeDays)
+	// 获取当月的签到情况
+	engine.GET("/sign_of_month", userSvc.GetSignOfMonth)
 	log.Fatalln(engine.Run(conf.Config.Config.App.Port))
 }
