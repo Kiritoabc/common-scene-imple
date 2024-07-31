@@ -58,6 +58,67 @@ func (s *UserSvc) Register(ctx *gin.Context) {
 
 ## 获取指定年份的累计签到天数
 
+~~~go
+// GetCumulativeDays 获取指定年份的累计签到天数
+func (s *UserSvc) GetCumulativeDays(ctx *gin.Context) {
+	// 获取用户信息
+	userId := ctx.Query("user_id")
+	// 获得时间
+	now := time.Now()
+	// 当前年份
+	year := now.Year()
+	// 当前天数的偏移量
+	dayOfYear := now.YearDay()
+	// 拼接key
+	key := fmt.Sprintf("user:%s:%d", userId, year)
+	segmentSize := 63
+	cumulativeDays := 0
+	// bit操作
+	bitOps := make([]any, 0)
+	for i := 0; i < dayOfYear; i += segmentSize {
+		size := segmentSize
+		if i+segmentSize > dayOfYear {
+			size = dayOfYear - i
+		}
+		// GET, usize,#i
+		bitOps = append(bitOps, "GET", fmt.Sprintf("u%d", size), fmt.Sprintf("#%d", i))
+	}
+
+	values, err := conf.RedisClient.BitField(ctx, key, bitOps...).Result()
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{
+			"code": 1,
+			"msg":  "error",
+		})
+		return
+	}
+	// 遍历
+	for idx, value := range values {
+		if value != 0 {
+			size := segmentSize
+			if (idx+1)*segmentSize > dayOfYear {
+				size = dayOfYear % segmentSize
+			}
+			for j := 0; j < size; j++ {
+				// 位运算判断结果
+				if (value & (1 << (size - 1 - j))) != 0 {
+					cumulativeDays++
+				}
+			}
+		}
+	}
+	// 返回结果
+	ctx.JSON(http.StatusOK, gin.H{
+		"code": 0,
+		"msg":  "success",
+		"data": cumulativeDays,
+	})
+	return
+}
+~~~
+
+
+
 要实现统计一年里的签到次数，我们需要用到 `Redis` 的 `BITFIELD` 命令。
 
 `Redis` 的 `BITFIELD` 命令是一个非常强大的命令，它允许你执行多种位级操作，包括读取、设置、增加位字段。这个命令能够操作存储在字符串中的位数组，并可以看作是直接在字符串上执行复杂的位操作。用法如下所示：
@@ -104,3 +165,65 @@ BITFIELD key [GET type offset] [SET type offset value] [INCRBY type offset incre
 
 
 ## 获取指定月份的签到情况
+
+要实现统计某月的签到情况，同样我们也需要用到 `Redis` 的 `BITFIELD` 命令。
+
+~~~go
+// GetSignOfMonth 获取指定月份的签到情况
+func (s *UserSvc) GetSignOfMonth(ctx *gin.Context) {
+	userId := ctx.Query("user_id")
+	now := time.Now()
+	year := now.Year()
+	// 获取当前月的天数
+	days := time.Date(now.Year(), now.Month()+1, 1, 0, 0, 0, 0, now.Location()).Add(-24 * time.Hour).Day()
+	// 获取本月初是今年的第几天
+	offset := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location()).YearDay()
+	key := fmt.Sprintf("user:%s:%d", userId, year)
+	typ := fmt.Sprintf("u%d", days)
+	values, err := conf.RedisClient.BitField(ctx, key, "SET", typ, offset, 1).Result()
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{
+			"code": 1,
+			"msg":  "error",
+		})
+		return
+	}
+	signInSlice := make([]bool, days)
+	if len(values) == 0 {
+		signInBits := values[0]
+		for i := 0; i < days; i++ {
+			signInSlice[i] = (signInBits & (1 << (days - 1 - i))) != 0
+		}
+	}
+	ctx.JSON(http.StatusOK, gin.H{
+		"code": 0,
+		"msg":  "success",
+		"data": signInSlice,
+	})
+}
+~~~
+
+上述代码实现了统计当月的签到情况的功能，流程如下：
+
+- **获取 Redis 客户端实例**：使用 `redis.NewClient()` 方法连接至 `Redis` 服务器，并获取一个客户端实例。
+
+- 获取时间因子：
+
+  - **当前年份**：通过 `year := now.Year()` 获取。
+  - **当前月的天数**：通过 `time.Date(now.Year(), now.Month()+1, 1, 0, 0, 0, 0, now.Location()).Add(-24 * time.Hour).Day()` 计算。
+  - **本月初是今年的第几天**：通过 `time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location()).YearDay()` 获取。
+
+- **设定用户** **`ID`**：示例中假设用户 ID 为 **1**。
+
+- 构建
+
+  `Redis key`和`BitField`命令的参数：
+
+  - 使用年份和用户 `ID` 构建一个唯一的 `Redis Key`，格式为 `user:年份:用户ID`。
+  - 使用当月天数 `days` 构建 `type` 参数 `fmt.Sprintf("u%d", days)`，表示操作的位字段宽度。
+
+- **执行** **`BitField`** **命令**：通过 `rdb.BitField()` 方法执行 `BitField` 命令，返回一个包含位二进制对应的十进制表示的 `int64` 类型切片。
+
+- **统计当月的签到情况**：通过位运算（与操作和位移操作）检测每天的签到状态，将结果以布尔切片形式返回，其中 `true` 表示签到，`false` 表示未签到。
+
+我们可以根据布尔切片的元素在用户端展示当月的签到情况，例如 **签到日历**。
