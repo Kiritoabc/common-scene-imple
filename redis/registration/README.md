@@ -127,7 +127,6 @@ func (s *UserSvc) GetCumulativeDays(ctx *gin.Context) {
 BITFIELD key [GET type offset] [SET type offset value] [INCRBY type offset increment]
 ~~~
 
-- **获取** **Redis** **客户端实例：** 使用 `redis.NewClient()` 方法连接 `Redis` 至服务器，并获取一个客户端实例。
 - 获取时间因子：
   - **当前年份：** 通过 `year := now.Year()` 获取。
   - **今天是今年的第几天：** 通过`dayOfYear := now.YearDay()` 获取。
@@ -205,8 +204,6 @@ func (s *UserSvc) GetSignOfMonth(ctx *gin.Context) {
 
 上述代码实现了统计当月的签到情况的功能，流程如下：
 
-- **获取 Redis 客户端实例**：使用 `redis.NewClient()` 方法连接至 `Redis` 服务器，并获取一个客户端实例。
-
 - 获取时间因子：
 
   - **当前年份**：通过 `year := now.Year()` 获取。
@@ -227,3 +224,17 @@ func (s *UserSvc) GetSignOfMonth(ctx *gin.Context) {
 - **统计当月的签到情况**：通过位运算（与操作和位移操作）检测每天的签到状态，将结果以布尔切片形式返回，其中 `true` 表示签到，`false` 表示未签到。
 
 我们可以根据布尔切片的元素在用户端展示当月的签到情况，例如 **签到日历**。
+
+
+
+## bitmap
+
+> 位图不是实际的数据类型，而是在 String 类型上定义的一组面向位的操作，将其视为位向量。由于字符串是二进制安全 blob，其最大长度为 512 MB，因此它们适合设置最多 2^32 个不同位。
+
+
+
+基本命令：
+
+- setbit key  offset value : 提供的偏移量处的一位设置为 0 或 1。
+- getbit key  offset :  返回给定偏移处的位值。
+
